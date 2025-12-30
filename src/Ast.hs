@@ -1,6 +1,9 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Ast where
--- data Name = Global String | Local Int deriving (Eq, Show)
-type Name = String
+import Control.Applicative
+
+data Name = Global String | Local Int deriving (Eq, Show)
+-- type Name = String
 
 data PType = Top
     | PAtomic Name
@@ -56,3 +59,35 @@ data Command = Connect Type Term Coterm deriving (Eq, Show)
 
 type Context = ([(Name, PType)], [(Name, NType)])
 
+emptyCtx :: Context
+emptyCtx = ([], [])
+
+pBind :: Name -> PType -> Context -> Context
+pBind name ty (cin, cout) = ((name, ty):cin, cout)
+
+nBind :: Name -> NType -> Context -> Context
+nBind name ty (cin, cout) = (cin, (name, ty):cout)
+
+pLookup :: Name -> Context -> Maybe PType
+pLookup n (xs, _) = lookup n xs
+
+nLookup :: Name -> Context -> Maybe NType
+nLookup n (_, ys) = lookup n ys
+
+data Errors = Errs [String] deriving (Eq, Show)
+
+mkErr :: String -> Errors
+mkErr s = Errs [s]
+
+instance Semigroup Errors where
+    Errs a <> Errs b = Errs $ a ++ b
+
+instance Monoid Errors where
+    mempty = Errs []
+
+instance Alternative (Either Errors) where
+    empty = Left mempty
+
+    Right a <|> _ = Right a
+    _ <|> (Right b) = Right b
+    Left e1 <|> Left e2 = Left $ e1 <> e2
