@@ -43,10 +43,14 @@ mismatch (x@(_, PShift _):xs, ys) = case mismatch (xs, ys) of
     ((xs', ys'), res) -> ((x:xs', ys'), res)
 mismatch ((xs, y@(_, NShift _):ys)) = case mismatch (xs, ys) of
     ((xs', ys'), res) -> ((xs', y:ys'), res)
-mismatch (x@(n, pt):xs, ys) = ((x:xs, ys), Just (n, Positive pt))
-mismatch (xs, y@(n, nt):ys) = ((xs, y:ys), Just (n, Negative nt))
--- mismatch ((n, pt):xs, ys) = ((xs, (n, NShift pt):ys), Just (n, Positive pt))
--- mismatch (xs, (n, nt):ys) = (((n, PShift nt):xs, ys), Just (n, Negative nt))
+mismatch (x@(_, PAtomic _):xs, ys) = case mismatch (xs, ys) of
+    ((xs', ys'), res) -> ((x:xs', ys'), res)
+mismatch ((xs, y@(_, NAtomic _):ys)) = case mismatch (xs, ys) of
+    ((xs', ys'), res) -> ((xs', y:ys'), res)
+-- mismatch (x@(n, pt):xs, ys) = ((x:xs, ys), Just (n, Positive pt))
+-- mismatch (xs, y@(n, nt):ys) = ((xs, y:ys), Just (n, Negative nt))
+mismatch ((n, pt):xs, ys) = ((xs, (n, NShift pt):ys), Just (n, Positive pt))
+mismatch (xs, (n, nt):ys) = (((n, PShift nt):xs, ys), Just (n, Negative nt))
     
 -- mismatch :: Context -> (Context, Maybe (Name, Type))
 -- mismatch ([], []) = (([], []), Nothing)
@@ -97,7 +101,7 @@ blurSearch :: Int -> Context -> Either Errors Command
 -- blurSearch ii ctx = trace ("making a command of type " ++ show ctx) $ 
 blurSearch ii ctx = trace ("making a command of type " ++ show ctx) $ let (ctx', res) = mismatch ctx in trace ("mismatch: " ++ show res ++ "\n\t" ++ show ctx ++ "\n\t" ++ show ctx' ++ "\n....") $ case res of
     Nothing -> trace ("focusing in context " ++ show ctx) $ focuser ii (maxSize ctx) ctx
-    -- Just (name, ty) -> 
+    -- Just (name, ty) ->
     Just (name, ty) -> case ty of
         Positive pt -> do
             -- cmd <- trace ("getting positive blur " ++ show name ++ ": " ++ show pt) $ blurSearch ii ctx'
@@ -181,13 +185,13 @@ main = do
     -- let check3 = cCheck (Connect (Negative (Not tA)) (MuNot (Global "x") (Connect (Positive tA) x a)) b) ([], [(Global "a", NShift tA), (Global "b", Not tA)])
     -- print check3
     -- print "3"
-    -- let tyconstructive = (PShift (Or (NShift tA) (Not tA)))
-    -- -- -- let tyy = (PShift (Or nA (Not (PShift nA))))
-    -- let res3 = pFocusSearch 0 emptyCtx tyconstructive
-    -- print res3
-    -- print "4"
-    -- let res4 = fmap (\r -> pCheck emptyCtx r tyconstructive) res3
-    -- print res4
+    let tyconstructive = (PShift (Or (NShift tA) (Not tA)))
+    -- -- let tyy = (PShift (Or nA (Not (PShift nA))))
+    let res3 = pFocusSearch 0 emptyCtx tyconstructive
+    print res3
+    print "4"
+    let res4 = fmap (\r -> pCheck emptyCtx r tyconstructive) res3
+    print res4
     let tyclassical = PShift (NShift ptA)
     -- let tyclassical = ptA
     print "5"
