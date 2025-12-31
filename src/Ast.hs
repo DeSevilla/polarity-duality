@@ -1,8 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Ast where
 import Control.Applicative
+import Data.List (intercalate)
 
-data Name = Global String | Local Int deriving (Eq, Show)
+data Name = Global String | Local Int deriving (Eq)
+
+instance Show Name where
+  show (Global s) = s
+  show (Local i) = "L" ++ show i
 -- type Name = String
 
 data PType = Top
@@ -12,7 +17,15 @@ data PType = Top
     | Minus NType
     -- | Exists PType Ptype??
     | PShift NType
-    deriving (Eq, Show)
+    deriving Eq
+
+instance Show PType where
+    show Top = "T"
+    show (PAtomic n) = "+" ++ show n
+    show (Plus t1 t2) = "(" ++ show t1 ++ " (+) " ++ show t2 ++ ")"
+    show (Times t1 t2) = "(" ++ show t1 ++ " (x) " ++ show t2 ++ ")"
+    show (Minus t) = "(-)(" ++ show t ++ ")"
+    show (PShift t) = "up(" ++ show t ++ ")"
 
 data NType = Bot
     | NAtomic Name
@@ -21,7 +34,15 @@ data NType = Bot
     | Not PType
     -- | Forall Ptype Ptype
     | NShift PType
-    deriving (Eq, Show)
+    deriving (Eq)
+
+instance Show NType where
+    show Bot = "_|_"
+    show (NAtomic n) = "-" ++ show n
+    show (And t1 t2) = "(" ++ show t1 ++ " & " ++ show t2 ++ ")"
+    show (Or t1 t2) = "(" ++ show t1 ++ " or " ++ show t2 ++ ")"
+    show (Not t) = "~(" ++ show t ++ ")"
+    show (NShift t) = "down(" ++ show t ++ ")"
 
 data Type = Positive PType | Negative NType deriving (Eq, Show)
 
@@ -57,7 +78,25 @@ data Termish = Tm Term | Co Coterm
 
 data Command = Connect Type Term Coterm deriving (Eq, Show)
 
+data SearchState = SSt Int [Name]
+
+getName :: SearchState -> (Name, SearchState)
+getName (SSt ii ns) = (Local ii, SSt (ii + 1) ns)
+
+
+note :: Name -> SearchState -> SearchState
+note n (SSt ii ns) = SSt ii (n:ns)
+
 type Context = ([(Name, PType)], [(Name, NType)])
+
+showCtx :: Context -> String
+showCtx (xs, ys) = commatize showBinding xs ++ " |- " ++ commatize showBinding ys
+
+showBinding :: (Show a1, Show a2) => (a1, a2) -> String
+showBinding (n, t) = show n ++ ":" ++ show t
+
+commatize :: (a -> String) -> [a] -> String
+commatize f xs = intercalate ", " (map f xs)
 
 emptyCtx :: Context
 emptyCtx = ([], [])
