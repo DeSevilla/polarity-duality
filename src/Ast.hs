@@ -2,6 +2,7 @@
 module Ast where
 import Control.Applicative
 import Data.List (intercalate)
+import Debug.Trace
 
 data Name = Global String | Local Int deriving (Eq)
 
@@ -80,12 +81,37 @@ data Command = Connect Type Term Coterm deriving (Eq, Show)
 
 data SearchState = SSt Int [Name]
 
-getName :: SearchState -> (Name, SearchState)
-getName (SSt ii ns) = (Local ii, SSt (ii + 1) ns)
+data Rule = VarR
+    | VarL
+    | Cut
+    | TimesR
+    | TimesL
+    | PlusR1
+    | PlusR2
+    | PlusL
+    | MinusL
+    | MinusR
+    | AndL1
+    | AndL2
+    | AndR
+    | OrL
+    | OrR
+    | NotL 
+    | NotR
+    | ShiftL
+    | ShiftR
 
+emptySSt :: SearchState
+emptySSt = SSt 0 []
+
+getName :: SearchState -> (SearchState, Name)
+getName (SSt ii ns) = (SSt (ii + 1) ns, Local ii)
 
 note :: Name -> SearchState -> SearchState
 note n (SSt ii ns) = SSt ii (n:ns)
+
+seen :: Name -> SearchState -> Bool
+seen n (SSt _ ns) = n `elem` ns
 
 type Context = ([(Name, PType)], [(Name, NType)])
 
