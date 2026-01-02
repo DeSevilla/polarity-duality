@@ -2,7 +2,6 @@
 module Ast where
 import Control.Applicative
 import Data.List (intercalate)
-import Debug.Trace
 
 data Name = Global String | Local Int deriving (Eq)
 
@@ -16,7 +15,7 @@ data PType = Top
     | Plus PType PType
     | Times PType PType 
     | Minus NType
-    -- | Exists PType Ptype??
+    -- | Exists Name PType
     | PShift NType
     deriving Eq
 
@@ -33,7 +32,7 @@ data NType = Bot
     | And NType NType
     | Or NType NType 
     | Not PType
-    -- | Forall Ptype Ptype
+    -- | Forall Name NType
     | NShift PType
     deriving (Eq)
 
