@@ -79,7 +79,7 @@ data Termish = Tm Term | Co Coterm
 
 data Command = Connect Type Term Coterm deriving (Eq, Show)
 
-data SearchState = SSt Int [Name]
+data SearchState = SSt Int [(Name, Rule)] (Maybe Name)
 
 data Rule = VarR
     | VarL
@@ -100,18 +100,26 @@ data Rule = VarR
     | NotR
     | ShiftL
     | ShiftR
+    deriving (Eq, Show)
 
 emptySSt :: SearchState
-emptySSt = SSt 0 []
+emptySSt = SSt 0 [] Nothing
 
 getName :: SearchState -> (SearchState, Name)
-getName (SSt ii ns) = (SSt (ii + 1) ns, Local ii)
+getName (SSt ii ns n) = (SSt (ii + 1) ns n, Local ii)
 
 note :: Name -> SearchState -> SearchState
-note n (SSt ii ns) = SSt ii (n:ns)
+note n (SSt ii ns _) = SSt ii ns (Just n)
 
-seen :: Name -> SearchState -> Bool
-seen n (SSt _ ns) = n `elem` ns
+
+apply :: Rule -> SearchState -> Either Errors SearchState
+apply r (SSt ii ns (Just n))
+    | (n, r) `elem` ns = Left $ mkErr $ "already filling variable " ++ show n ++ " with rule " ++ show r
+    | otherwise = Right $ SSt ii ((n, r):ns) Nothing
+apply _ sst = Right sst
+
+seen :: Name -> Rule -> SearchState -> Bool
+seen n r (SSt _ ns _) = (n, r) `elem` ns
 
 type Context = ([(Name, PType)], [(Name, NType)])
 
