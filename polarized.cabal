@@ -29,6 +29,7 @@ library
       Check
       Eval
       Lib
+      Search
   other-modules:
       Paths_polarized
   autogen-modules:
