@@ -25,6 +25,7 @@ instance Show PType where
     show (Plus t1 t2) = "(" ++ show t1 ++ " (+) " ++ show t2 ++ ")"
     show (Times t1 t2) = "(" ++ show t1 ++ " (x) " ++ show t2 ++ ")"
     show (Minus t) = "(-)(" ++ show t ++ ")"
+    -- show (Exists n t) = "Exists{" ++ show n ++ "}(" ++ show t ++ ")" 
     show (PShift t) = "up(" ++ show t ++ ")"
 
 data NType = Bot
@@ -42,6 +43,7 @@ instance Show NType where
     show (And t1 t2) = "(" ++ show t1 ++ " & " ++ show t2 ++ ")"
     show (Or t1 t2) = "(" ++ show t1 ++ " or " ++ show t2 ++ ")"
     show (Not t) = "~(" ++ show t ++ ")"
+    -- show (Forall n t) = "Forall{" ++ show n ++ "}(" ++ show t ++ ")"
     show (NShift t) = "down(" ++ show t ++ ")"
 
 data Type = Positive PType | Negative NType deriving (Eq, Show)
@@ -51,12 +53,12 @@ data Term = TT
     | Pair Term Term
     | InL Term
     | InR Term
-    -- | Exist Type Term
+    -- | Witness Type Term
     | Sub Coterm
     | MuAnd (Name, Command) (Name, Command)
     | MuOr (Name, Name) Command
     | MuNot Name Command
-    -- | MuExist (Type, Name) Command
+    -- | MuForall (Name, Name) Command
     | Mu Name Command
     deriving (Eq, Show)
 
@@ -65,12 +67,12 @@ data Coterm = FF
     | PiL Coterm
     | PiR Coterm
     | Copair Coterm Coterm
-    -- | Nall Type Coterm
+    -- | Counter Type Coterm
     | Neg Term
     | MatchTimes (Name, Name) Command
     | MatchPlus (Name, Command) (Name, Command)
     | MatchMinus Name Command
-    -- | MatchForall (Type, Name) Command
+    -- | MatchExists (Name, Name) Command
     | Let Name Command
     deriving (Eq, Show)
 

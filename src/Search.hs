@@ -3,6 +3,7 @@ module Search where
 import Data.Tuple (swap)
 import Control.Applicative (Alternative(..))
 import Ast
+import Debug.Trace (trace)
 
 data Rule = VarR
     | VarL
@@ -25,7 +26,7 @@ data Rule = VarR
     | ShiftR
     deriving (Eq, Show)
 
-data SearchState = SSt Int [(Name, Rule)] (Maybe Name)
+data SearchState = SSt Int [(Name, Rule)] (Maybe Name) deriving (Eq, Show)
 
 emptySSt :: SearchState
 emptySSt = SSt 0 [] Nothing
@@ -40,6 +41,7 @@ note n (SSt ii ns _) = SSt ii ns (Just n)
 apply :: Rule -> SearchState -> Either Errors SearchState
 apply r (SSt ii ns (Just n))
     | (n, r) `elem` ns = Left $ mkErr $ "already filling variable " ++ show n ++ " with rule " ++ show r
+    -- | otherwise = trace ("(" ++ show n ++ "," ++ show r ++ ") not in " ++ show ns) $ Right $ SSt ii ((n, r):ns) Nothing
     | otherwise = Right $ SSt ii ((n, r):ns) Nothing
 apply _ sst = Right sst
 
@@ -88,16 +90,20 @@ checkContext ctx = backtrack helper3 (maxSize ctx)
             co <- checkCovar cx nt
             return $ Connect (Negative nt) tm co
 
-mismatch :: SearchState -> Context -> Maybe (Name, Type)
-mismatch _ ([], []) = Nothing
-mismatch ii ((_, PShift _):xs, ys) = mismatch ii (xs, ys)
-mismatch ii ((xs, (_, NShift _):ys)) = mismatch ii (xs, ys)
-mismatch ii ((_, PAtomic _):xs, ys) = mismatch ii (xs, ys)
-mismatch ii ((xs, (_, NAtomic _):ys)) = mismatch ii (xs, ys)
+mismatch :: SearchState -> Int -> Context -> Maybe (Name, Type)
+mismatch _ _ ([], []) = Nothing
+mismatch ii 0 ((_, PShift _):xs, ys) = Nothing -- mismatch ii 0 (xs, ys)
+mismatch ii 0 ((xs, (_, NShift _):ys)) = Nothing -- mismatch ii 0 (xs, ys)
+mismatch ii 0 ((_, PAtomic _):xs, ys) = Nothing -- mismatch ii 0 (xs, ys)
+mismatch ii 0 ((xs, (_, NAtomic _):ys)) = Nothing -- mismatch ii 0 (xs, ys)
 -- mismatch _ ((n, pt):_, _) = trace ("+type " ++ show pt ++ " is neither shift nor atomic") $ Just (n, Positive pt)
-mismatch _ ((n, pt):_, _) = Just (n, Positive pt)
+mismatch _ 0 ((n, pt):_, _) = Just (n, Positive pt)
 -- mismatch _ (_, (n, nt):_) = trace ("-type " ++ show nt ++ " is neither shift nor atomic") $ Just (n, Negative nt)
-mismatch _ (_, (n, nt):_) = Just (n, Negative nt)
+mismatch _ 0 (_, (n, nt):_) = Just (n, Negative nt)
+-- mismatch ii k (_:xs, ys) = trace ("skipping left at " ++ show k) mismatch ii (k - 1) (xs, ys)
+mismatch ii k (_:xs, ys) = mismatch ii (k - 1) (xs, ys)
+-- mismatch ii k ([], _:ys) = trace ("skipping right at " ++ show k) mismatch ii (k - 1) ([], ys)
+mismatch ii k ([], _:ys) = mismatch ii (k - 1) ([], ys)
 
 focus :: Int -> Context -> Either Errors (Name, Type)
 -- focus k ([], []) = trace "empty" $ Left $ mkErr $ "Cannot focus in empty context" ++ show k
@@ -106,7 +112,8 @@ focus k ([], []) = Left $ mkErr $ "Cannot focus in empty context" ++ show k
 focus 0 ((n, PShift ty):_, _) = Right (n, Negative ty)
 -- focus 0 (_, (n, NShift ty):_) = trace ("got positive " ++ show n) Right (n, Positive ty)
 focus 0 (_, (n, NShift ty):_) = Right (n, Positive ty)
-focus 0 ctx = Left $ mkErr $ "OH NOOOOOO Non-shifted in context " ++ showCtx ctx ++ " (should be impossible? or not idk)"
+-- focus 0 ctx = trace ("Failed to focus on " ++ show ctx) $ Left $ mkErr $ "OH NOOOOOO Non-shifted in context " ++ showCtx ctx ++ " (should be impossible? or not idk)"
+focus 0 ctx = Left $ mkErr $ "got non-shifted in context " ++ showCtx ctx ++ " (caused by backtracking)"
 -- focus k (_:xs, ys) = trace ("countingleft:" ++ show k) focus (k - 1) (xs, ys)
 focus k (_:xs, ys) = focus (k - 1) (xs, ys)
 -- focus k ([], _:ys) = trace ("countingright:" ++ show k) $ focus (k - 1) ([], ys)
@@ -138,22 +145,44 @@ backtrack :: Alternative f => (Int -> f a) -> Int -> f a
 backtrack f 0 = f 0
 backtrack f k = f k <|> backtrack f (k - 1)
 
+handler :: SearchState -> Context -> Maybe (Name, Type) -> Either Errors Command
+-- handler ii ctx Nothing = trace ("handling focusing on ctx\n\t" ++ show ctx)  $ focuser ii (maxSize ctx) ctx
+handler ii ctx Nothing = focuser ii (maxSize ctx) ctx
+-- handler ii ctx (Just (name, Positive pt)) = trace ("handling positive " ++ show pt) $ do
+handler ii ctx (Just (name, Positive pt)) = do
+    let ii' = note name ii
+    co <- nBlur ii' ctx pt
+    return $ Connect (Positive pt) (Var name) co
+-- handler ii ctx (Just (name, Negative nt)) = trace ("handling negative " ++ show nt) $ do
+handler ii ctx (Just (name, Negative nt)) = do
+    let ii' = note name ii
+    tm <- pBlur ii' ctx nt
+    return $ Connect (Negative nt) tm (Covar name)
+
+blurrer :: SearchState -> Context -> Int -> Either Errors Command
+blurrer _ _ 0 = Left $ mkErr "all our backtracking failed"
+blurrer ii ctx k = let res = mismatch ii (k - 1) ctx in
+    handler ii ctx res <|> blurrer ii ctx (k - 1)
+-- blurrer ii ctx k = trace ("blurring " ++ show k) $ let res = mismatch ii (k - 1) ctx in
+    -- trace ("mismatch " ++ show res) handler ii ctx res <|> trace ("blurring attempt " ++ show (k - 1)) blurrer ii ctx (k - 1)
+
 blurSearch :: SearchState -> Context -> Either Errors Command
--- blurSearch ii ctx = trace ("making a command of type\n\t" ++ showCtx ctx) $ checkContext ctx <|> let res = mismatch ii ctx in trace ("mismatch: " ++ show res ++ "\n\t" ++ showCtx ctx) $ case res of
-blurSearch ii ctx = checkContext ctx <|> case mismatch ii ctx of
-    -- Nothing -> trace ("focusing in context\n\t" ++ showCtx ctx) $ focuser ii (maxSize ctx) ctx
-    Nothing -> focuser ii (maxSize ctx) ctx
-    Just (name, ty) -> case ty of
-        Positive pt -> do
-            -- co <- trace ("getting nBlur " ++ show name ++ ": " ++ show pt ++ " at\n\t" ++ showCtx ctx) $ nBlur ii ctx pt
-            co <- nBlur ii ctx pt
-            -- return $ trace ("muing positive mismatch " ++ show name) $ Connect (Positive pt) (Var name) co
-            return $ Connect (Positive pt) (Var name) co
-        Negative nt -> do
-            -- tm <- trace ("getting pBlur " ++ show name ++ ": " ++ show nt) $ pBlur ii ctx nt
-            tm <- pBlur ii ctx nt
-            -- return $ trace "muing negative mismatch" $ Connect (Negative nt) tm (Covar name)
-            return $ Connect (Negative nt) tm (Covar name)
+blurSearch ii ctx = checkContext ctx <|> blurrer ii ctx (maxSize ctx)
+-- blurSearch ii ctx = trace ("making a command of type\n\t" ++ showCtx ctx) $ checkContext ctx <|> let res = mismatch ii (maxSize ctx) ctx in trace ("mismatch: " ++ show res ++ "\n\t" ++ showCtx ctx ++ "\n\t" ++ show ii) $ case res of
+-- -- blurSearch ii ctx = checkContext ctx <|> case mismatch ii ctx of
+--     -- Nothing -> trace ("focusing in context\n\t" ++ showCtx ctx) $ focuser ii (maxSize ctx) ctx
+--     Nothing -> focuser ii (maxSize ctx) ctx
+--     Just (name, ty) -> let ii' = note name ii in case ty of
+--         Positive pt -> do
+--             -- co <- trace ("getting nBlur " ++ show name ++ ": " ++ show pt ++ " at\n\t" ++ showCtx ctx) $ nBlur ii ctx pt
+--             co <- nBlur ii' ctx pt
+--             -- return $ trace ("muing positive mismatch " ++ show name) $ Connect (Positive pt) (Var name) co
+--             return $ Connect (Positive pt) (Var name) co
+--         Negative nt -> do
+--             -- tm <- trace ("getting pBlur " ++ show name ++ ": " ++ show nt) $ pBlur ii ctx nt
+--             tm <- pBlur ii' ctx nt
+--             -- return $ trace "muing negative mismatch" $ Connect (Negative nt) tm (Covar name)
+--             return $ Connect (Negative nt) tm (Covar name)
 
 pBlur :: SearchState -> Context -> NType -> Either Errors Term
 pBlur _ _ Bot = Left $ mkErr "Cannot prove Bot"
@@ -176,8 +205,10 @@ pBlur ii ctx (Or a b) = do
 pBlur ii ctx (Not p) = do
     iin <- apply NotR ii
     let (ii', name) = getName iin
+    -- res <- trace ("searching with proof state\n\t" ++ show ii') blurSearch ii' (pBind name p ctx)
     res <- blurSearch ii' (pBind name p ctx)
     return $ MuNot name res
+-- pBlur ii ctx (Forall n t) = undefined
 -- pBlur ii ctx (NShift p) = trace "double-shifted! mooing" $ do
 pBlur ii ctx (NShift p) = do
     iin <- apply ShiftR ii
@@ -268,6 +299,7 @@ nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
         a <- nFocusSearch ii' ctx tA
         b <- nFocusSearch ii' ctx tB
         return $ Copair a b
+    -- Not p -> trace ("searching for coterm of negative" ++ show ii) $ do
     Not p -> do
         ii' <- apply NotL ii 
         res <- pFocusSearch ii' ctx p
@@ -275,3 +307,8 @@ nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
     -- NShift pt -> trace ("blurring to construct a coterm of shifted type " ++ show pt) nBlur ii ctx pt
     NShift pt -> nBlur ii ctx pt
 
+termSearch :: PType -> Either Errors Term
+termSearch = pFocusSearch emptySSt emptyCtx
+
+cotermSearch :: NType -> Either Errors Coterm
+cotermSearch = nFocusSearch emptySSt emptyCtx
