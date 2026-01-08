@@ -46,7 +46,11 @@ instance Show NType where
     -- show (Forall n t) = "Forall{" ++ show n ++ "}(" ++ show t ++ ")"
     show (NShift t) = "down(" ++ show t ++ ")"
 
-data Type = Positive PType | Negative NType deriving (Eq, Show)
+data Type = Positive PType | Negative NType deriving (Eq)
+
+instance Show Type where
+    show (Positive pt) = show pt ++ ":+"
+    show (Negative nt) = show nt ++ ":-"
 
 data Term = TT
     | Var Name
@@ -78,8 +82,10 @@ data Coterm = FF
 
 data Termish = Tm Term | Co Coterm
 
-data Command = Connect Type Term Coterm deriving (Eq, Show)
+data Command = Connect Type Term Coterm deriving (Eq)
 
+instance Show Command where
+    show (Connect ty tm co) = "{" ++ show tm ++ "|" ++ show ty ++ "|" ++ show co ++ "}"
 
 type Context = ([(Name, PType)], [(Name, NType)])
 

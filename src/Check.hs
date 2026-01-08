@@ -1,7 +1,6 @@
 module Check where
 import Ast
 
-
 pCheck :: Context -> Term -> PType -> Either Errors ()
 pCheck ctx (Var n) ty = case pLookup n ctx of
     Just ty' -> if ty == ty' then Right () else Left $ mkErr "Ascribed bad type"
