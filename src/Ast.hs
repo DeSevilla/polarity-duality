@@ -1,5 +1,10 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Ast where
+module Ast (
+    Name(..), Context, pBind, nBind, pLookup, nLookup, showCtx, emptyCtx,
+    Term(..), Coterm(..), Termish(..), Command(..),
+    PType(..), NType(..), Type(..),
+    Errors(..), mkErr,
+    ) where
 import Control.Applicative
 import Data.List (intercalate)
 
@@ -8,7 +13,6 @@ data Name = Global String | Local Int deriving (Eq)
 instance Show Name where
   show (Global s) = s
   show (Local i) = "L" ++ show i
--- type Name = String
 
 data PType = Top
     | PAtomic Name

@@ -1,4 +1,4 @@
-module Check where
+module Check (pCheck, nCheck, cCheck) where
 import Ast
 
 pCheck :: Context -> Term -> PType -> Either Errors ()
@@ -19,10 +19,8 @@ pCheck ctx (MuOr (n1, n2) c) (PShift (Or x y)) = cCheck c (nBind n1 x (nBind n2 
 pCheck ctx (MuNot n c) (PShift (Not t)) = cCheck c (pBind n t ctx)
 -- pCheck ctx (MuForall (nt, nv) c) (PShift (Forall nt' y)) = if nt' == nt then cCheck c (nBind nv y ctx) else Left $ mkErr "ack"
 pCheck ctx (Mu n c) (PShift ty) = cCheck c (nBind n ty ctx)
--- pCheck ctx (Mu n c) ty = cCheck c (nBind n (NShift ty) ctx)
 pCheck _ TT Top = Right ()
 pCheck ctx tm ty = Left $ mkErr $ "Could not type " ++ show tm ++ ": " ++ show ty ++ "at context " ++ show ctx
--- pCheck _ _ _ = Left "Not implemented or not real!"
 
 nCheck :: Context -> Coterm -> NType -> Either Errors ()
 nCheck ctx (Covar n) ty = case nLookup n ctx of
@@ -42,7 +40,6 @@ nCheck ctx (MatchPlus (n1, c1) (n2, c2)) (NShift (Plus x y)) = do
 nCheck ctx (MatchMinus n c) (NShift (Minus t)) = cCheck c (nBind n t ctx)
 -- nCheck ctx (MatchExists (nt, nv) c) (NShift (Exists nt' y)) = if nt' == nt then cCheck c (pBind nv y ctx) else Left $ mkErr "ack!"
 nCheck ctx (Let n c) (NShift ty) = cCheck c (pBind n ty ctx)
--- nCheck ctx (Let n c) ty = cCheck c (pBind n (PShift ty) ctx)
 nCheck _ FF Bot = Right ()
 nCheck ctx tm ty = Left $ mkErr $ "Could not type " ++ show tm ++ ": " ++ show ty ++ "at context " ++ show ctx
 
