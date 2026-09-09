@@ -34,23 +34,10 @@ main = do
     putStrLn "CONSTRUCTIVE LEM"
     let tyconstructive = (PShift (Or (NShift tA) (Not tA)))
     checkSearch tyconstructive
-    -- -- let tyy = (PShift (Or nA (Not (PShift nA))))
-    -- let res3 = termSearch tyconstructive
-    -- print res3
-    -- putStrLn "2"
-    -- let res4 = fmap (\r -> pCheck emptyCtx r tyconstructive) res3
-    -- print res4
     putStrLn "CLASSICAL LEM"
     let tyclassical = PShift (NShift lemA)
     checkSearch tyclassical
-    -- let tyclassical = ptA
-    -- putStrLn "3"
-    -- let res5 = termSearch tyclassical
-    -- print res5
-    -- putStrLn "4"
-    -- let res6 = fmap (\r -> pCheck emptyCtx r tyclassical) res5
-    -- print res6
-    putStrLn "IMPOSSIBLE"
+    putStrLn "IMPOSSIBLE (expect failure)"
     checkSearch lemA
     putStrLn "SHOULD BE FUNCTIONS:"
     putStrLn "A -> A + B"
