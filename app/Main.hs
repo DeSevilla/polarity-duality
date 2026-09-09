@@ -8,9 +8,22 @@ checkSearch :: PType -> IO ()
 checkSearch ty = do
     print ty
     let res = termSearch ty
-    print res
-    let res2 = fmap (\r -> pCheck emptyCtx r ty) res
-    print res2
+    case res of
+        Left errs -> do
+            putStrLn "Failed to find term for type:"
+            putStr "\t"
+            print errs
+        Right tm -> do
+            putStrLn "Found term:"
+            putStr "\t"
+            print tm
+    let res2 = res >>= (\r -> pCheck emptyCtx r ty)
+    case res2 of
+        Left errs -> do
+            putStrLn "Search result failed to typecheck:"
+            putStr "\t"
+            print errs
+        Right () -> putStrLn "Typechecks!"
     putStrLn ""
 
 main :: IO ()
