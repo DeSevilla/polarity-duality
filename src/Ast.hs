@@ -24,13 +24,13 @@ data PType = Top
     deriving Eq
 
 instance Show PType where
-    show Top = "T"
+    show Top = "tt"
     show (PAtomic n) = "+" ++ show n
-    show (Plus t1 t2) = "(" ++ show t1 ++ " (+) " ++ show t2 ++ ")"
-    show (Times t1 t2) = "(" ++ show t1 ++ " (x) " ++ show t2 ++ ")"
-    show (Minus t) = "(-)(" ++ show t ++ ")"
+    show (Plus t1 t2) = "(" ++ show t1 ++ " + " ++ show t2 ++ ")"
+    show (Times t1 t2) = "(" ++ show t1 ++ " * " ++ show t2 ++ ")"
+    show (Minus t) = "-(" ++ show t ++ ")"
     -- show (Exists n t) = "Exists{" ++ show n ++ "}(" ++ show t ++ ")" 
-    show (PShift t) = "up(" ++ show t ++ ")"
+    show (PShift t) = "^" ++ show t ++ ""
 
 data NType = Bot
     | NAtomic Name
@@ -42,13 +42,13 @@ data NType = Bot
     deriving (Eq)
 
 instance Show NType where
-    show Bot = "_|_"
+    show Bot = "ff"
     show (NAtomic n) = "-" ++ show n
     show (And t1 t2) = "(" ++ show t1 ++ " & " ++ show t2 ++ ")"
-    show (Or t1 t2) = "(" ++ show t1 ++ " or " ++ show t2 ++ ")"
+    show (Or t1 t2) = "(" ++ show t1 ++ " | " ++ show t2 ++ ")"
     show (Not t) = "~(" ++ show t ++ ")"
     -- show (Forall n t) = "Forall{" ++ show n ++ "}(" ++ show t ++ ")"
-    show (NShift t) = "down(" ++ show t ++ ")"
+    show (NShift t) = "v" ++ show t ++ ""
 
 data Type = Positive PType | Negative NType deriving (Eq)
 
