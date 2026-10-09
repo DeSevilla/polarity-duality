@@ -1,6 +1,6 @@
 # Polarized
 
-A simple polarized type system for computational propositional logic, following the model of Downen & Ariola's [Duality in Action](https://drops.dagstuhl.de/storage/00lipics/lipics-vol195-fscd2021/LIPIcs.FSCD.2021.1/LIPIcs.FSCD.2021.1.pdf).
+A simple polarized type system for computational propositional logic, following the models of Downen & Ariola's [Duality in Action](https://drops.dagstuhl.de/storage/00lipics/lipics-vol195-fscd2021/LIPIcs.FSCD.2021.1/LIPIcs.FSCD.2021.1.pdf) and Zeilberger's [On the Unity of Duality](https://www.lix.polytechnique.fr/~zeilberger/papers/unity-duality.pdf).
 I've defined a focusing proof search for it, to improve my understanding of both polarized types/logic
 and focusing in general.
 
