@@ -19,13 +19,13 @@ checkSearch search check ty = do
             putStrLn "Found term:"
             putStr "\t"
             print tm
-    let res2 = res >>= (\r -> check emptyCtx r ty)
-    case res2 of
-        Left errs -> do
-            putStrLn "Search result failed to typecheck:"
-            putStr "\t"
-            print errs
-        Right () -> putStrLn "Typechecks!"
+            let res2 = res >>= (\r -> check emptyCtx r ty)
+            case res2 of
+                Left errs -> do
+                    putStrLn "Search result failed to typecheck:"
+                    putStr "\t"
+                    print errs
+                Right () -> putStrLn "Typechecks!"
     putStrLn ""
 
 

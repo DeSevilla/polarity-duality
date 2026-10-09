@@ -25,7 +25,7 @@ data PType = Top
 
 instance Show PType where
     show Top = "tt"
-    show (PAtomic n) = "+" ++ show n
+    show (PAtomic n) = show n
     show (Plus t1 t2) = "(" ++ show t1 ++ " + " ++ show t2 ++ ")"
     show (Times t1 t2) = "(" ++ show t1 ++ " * " ++ show t2 ++ ")"
     show (Minus t) = "-(" ++ show t ++ ")"
@@ -43,7 +43,7 @@ data NType = Bot
 
 instance Show NType where
     show Bot = "ff"
-    show (NAtomic n) = "-" ++ show n
+    show (NAtomic n) = show n
     show (And t1 t2) = "(" ++ show t1 ++ " & " ++ show t2 ++ ")"
     show (Or t1 t2) = "(" ++ show t1 ++ " | " ++ show t2 ++ ")"
     show (Not t) = "~(" ++ show t ++ ")"

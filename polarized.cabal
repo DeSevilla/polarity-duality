@@ -28,7 +28,6 @@ library
       Ast
       Check
       Eval
-      Lib
       Parse
       Search
   other-modules:

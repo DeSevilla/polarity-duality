@@ -25,26 +25,23 @@ data Rule = VarR
     | ShiftR
     deriving (Eq, Show)
 
+-- contains: number of binders, list of rules + variables they've been applied to, name focused on
 data SearchState = SSt Int [(Name, Rule)] (Maybe Name) deriving (Eq, Show)
 
 emptySSt :: SearchState
 emptySSt = SSt 0 [] Nothing
 
-getName :: SearchState -> (SearchState, Name)
-getName (SSt ii ns n) = (SSt (ii + 1) ns n, Local ii)
+bindName :: SearchState -> (SearchState, Name)
+bindName (SSt ii ns n) = (SSt (ii + 1) ns n, Local ii)
 
 note :: Name -> SearchState -> SearchState
 note n (SSt ii ns _) = SSt ii ns (Just n)
-
 
 apply :: Rule -> SearchState -> Either Errors SearchState
 apply r (SSt ii ns (Just n))
     | (n, r) `elem` ns = Left $ mkErr $ "already filling variable " ++ show n ++ " with rule " ++ show r
     | otherwise = Right $ SSt ii ((n, r):ns) Nothing
 apply _ sst = Right sst
-
--- seen :: Name -> Rule -> SearchState -> Bool
--- seen n r (SSt _ ns _) = (n, r) `elem` ns
 
 justErr :: a -> Maybe b -> Either a b
 justErr a Nothing = Left a
@@ -64,6 +61,8 @@ checkCovar ctx ty = do
     n <- findType ctx (Negative ty)
     return $ Covar n
 
+-- TODO this might be overly sensitive to implementation...
+-- the backtracking is a bit questionable
 checkContext :: Context -> Either Errors Command
 checkContext ctx = backtrack helper3 (maxSize ctx)
     where
@@ -89,10 +88,10 @@ checkContext ctx = backtrack helper3 (maxSize ctx)
 
 mismatch :: SearchState -> Int -> Context -> Maybe (Name, Type)
 mismatch _ _ ([], []) = Nothing
-mismatch _ 0 ((_, PShift _):_, _) = Nothing -- mismatch ii 0 (xs, ys)
-mismatch _ 0 ((_, (_, NShift _):_)) = Nothing -- mismatch ii 0 (xs, ys)
-mismatch _ 0 ((_, PAtomic _):_, _) = Nothing -- mismatch ii 0 (xs, ys)
-mismatch _ 0 ((_, (_, NAtomic _):_)) = Nothing -- mismatch ii 0 (xs, ys)
+mismatch _ 0 ((_, PShift _):_, _) = Nothing
+mismatch _ 0 ((_, (_, NShift _):_)) = Nothing
+mismatch _ 0 ((_, PAtomic _):_, _) = Nothing
+mismatch _ 0 ((_, (_, NAtomic _):_)) = Nothing
 mismatch _ 0 ((n, pt):_, _) = Just (n, Positive pt)
 mismatch _ 0 (_, (n, nt):_) = Just (n, Negative nt)
 mismatch ii k (_:xs, ys) = mismatch ii (k - 1) (xs, ys)
@@ -152,24 +151,24 @@ pBlur _ _ Bot = Left $ mkErr "Cannot prove Bot"
 pBlur _ ctx t@(NAtomic _) = checkVar ctx (PShift t)
 pBlur ii ctx (And a b) = do
     ii'' <- apply AndR ii
-    let (ii', name) = getName ii''
+    let (ii', name) = bindName ii''
     c1 <- blurSearch ii' (nBind name a ctx)
     c2 <- blurSearch ii' (nBind name b ctx)
     return $ MuAnd (name, c1) (name, c2)
 pBlur ii ctx (Or a b) = do
     iin <- apply OrR ii
-    let (ii', name1) = getName iin
-    let (ii'', name2) = getName ii'
+    let (ii', name1) = bindName iin
+    let (ii'', name2) = bindName ii'
     res <- blurSearch ii'' (nBind name1 a (nBind name2 b ctx))
     return $ MuOr (name1, name2) res
 pBlur ii ctx (Not p) = do
     iin <- apply NotR ii
-    let (ii', name) = getName iin
+    let (ii', name) = bindName iin
     res <- blurSearch ii' (pBind name p ctx)
     return $ MuNot name res
 pBlur ii ctx (NShift p) = do
     iin <- apply ShiftR ii
-    let (ii', name) = getName iin
+    let (ii', name) = bindName iin
     res <- blurSearch ii' (nBind name (NShift p) ctx)
     return $ Mu name res
 
@@ -178,24 +177,24 @@ nBlur _ _ Top = Left $ mkErr "Cannot disprove Top"
 nBlur _ ctx t@(PAtomic _) = checkCovar ctx (NShift t)
 nBlur ii ctx (Times a b) = do
     ii' <- apply TimesL ii
-    let (ii'', name1) = getName ii'
-    let (ii''', name2) = getName ii''
+    let (ii'', name1) = bindName ii'
+    let (ii''', name2) = bindName ii''
     res <- blurSearch ii''' (pBind name1 a (pBind name2 b ctx))
     return $ MatchTimes (name1, name2) res
 nBlur ii ctx (Plus a b) = do
     ii'' <- apply PlusL ii
-    let (ii', name) = getName ii''
+    let (ii', name) = bindName ii''
     c1 <- blurSearch ii' (pBind name a ctx)
     c2 <- blurSearch ii' (pBind name b ctx)
     return $ MatchPlus (name, c1) (name, c2)
 nBlur ii ctx (Minus n) = do
     ii'' <- apply MinusL ii
-    let (ii', name) = getName ii''
+    let (ii', name) = bindName ii''
     res <- blurSearch ii' (nBind name n ctx)
     return $ (MatchMinus name) res
 nBlur ii ctx (PShift n) = do
     ii'' <- apply ShiftL ii
-    let (ii', name) = getName ii''
+    let (ii', name) = bindName ii''
     res <- blurSearch ii' (pBind name (PShift n) ctx)
     return $ Let name res
 

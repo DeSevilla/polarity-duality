@@ -15,10 +15,10 @@ parseType :: Parsec String () Type
 parseType = (parsePType >>= return . Positive) <|> (parseNType >>= return . Negative)
 
 parseNType :: Parsec String () NType
-parseNType = parseBot <|> parseNAtomic <|> try parseAnd <|> try parseOr <|> try parseNot <|> try parseDownShift
+parseNType = parseBot <|> parseNAtomic <|> try parseAnd <|> try parseOr <|> try parseNot <|> parseDownShift
 
 parsePType :: Parsec String () PType
-parsePType = parseTop <|> parsePAtomic <|> try parseTimes <|> try parsePlus <|> try parseMinus <|> try parseUpShift
+parsePType = parseTop <|> parsePAtomic <|> try parseTimes <|> try parsePlus <|> try parseMinus <|> try parseUpShift <|> parseFunc
 
 parseBot :: Parsec String () NType
 parseBot = string "ff" >> return Bot
@@ -38,8 +38,8 @@ parseNot = parseUnary parsePType "~" Not
 parseDownShift :: Parsec String () NType
 parseDownShift = parseUnary parsePType "v" NShift
 
--- parseFunc :: Parsec String () PType
--- parseFunc = 
+parseFunc :: Parsec String () PType
+parseFunc = parseOp parsePType "=>" $ \a b -> PShift (Or (Not a) (NShift b))
 
 parseTop :: Parsec String () PType
 parseTop = string "tt" >> return Top
