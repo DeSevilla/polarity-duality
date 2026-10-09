@@ -31,7 +31,8 @@ and its inhabitant is [Wadler's devil](https://homepages.inf.ed.ac.uk/wadler/pap
 
 # To Do/Future Work
 
-* Quantifiers, which seem to require unification, unlike the rest of the terms.
-* Evaluation, which is rather fiddly. The rules involve a value restriction that's not built in to this implementation.
+* Quantifiers, which are more complex the rest of the types as they involve substitution
+  (might need unification?)
+* Evaluation, which is rather fiddly -- the rules involve a value restriction that's not built in to this implementation.
 * Improve error handling, which is not good currently.
 * ???
