@@ -24,15 +24,15 @@ data PType = Top
     deriving Eq
 
 instance Show PType where
-    show Top = "tt"
+    show Top = "top"
     show (PAtomic n) = show n
     show (Plus t1 t2) = "(" ++ show t1 ++ " + " ++ show t2 ++ ")"
     show (Times t1 t2) = "(" ++ show t1 ++ " * " ++ show t2 ++ ")"
-    show (Minus t) = "-(" ++ show t ++ ")"
+    show (Minus t) = "-" ++ show t
     -- show (Exists n t) = "Exists{" ++ show n ++ "}(" ++ show t ++ ")" 
     show (PShift t) = "^" ++ show t ++ ""
 
-data NType = Bot
+data NType = Btm
     | NAtomic Name
     | And NType NType
     | Or NType NType 
@@ -42,11 +42,11 @@ data NType = Bot
     deriving (Eq)
 
 instance Show NType where
-    show Bot = "ff"
+    show Btm = "btm"
     show (NAtomic n) = show n
     show (And t1 t2) = "(" ++ show t1 ++ " & " ++ show t2 ++ ")"
     show (Or t1 t2) = "(" ++ show t1 ++ " | " ++ show t2 ++ ")"
-    show (Not t) = "~(" ++ show t ++ ")"
+    show (Not t) = "~" ++ show t
     -- show (Forall n t) = "Forall{" ++ show n ++ "}(" ++ show t ++ ")"
     show (NShift t) = "v" ++ show t ++ ""
 

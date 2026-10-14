@@ -8,6 +8,7 @@ import Parse (parseLine)
 
 checkSearch :: (Show a, Show b) => (a -> Either Errors b) -> (Context -> b -> a -> Either Errors ()) -> a -> IO ()
 checkSearch search check ty = do
+    putStr "Desugared:\n\t"
     print ty
     let res = search ty
     case res of
@@ -27,8 +28,6 @@ checkSearch search check ty = do
                     print errs
                 Right () -> putStrLn "Typechecks!"
     putStrLn ""
-
-
 
 main :: IO ()
 main = do

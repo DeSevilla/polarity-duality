@@ -8,17 +8,17 @@ It's set up to build and run with Stack (`stack run`).
 It will prompt you for a polarized type, search for a value of that type, and 
 (if successful) verify that it has that type.
 
-* Atomic types are ALL CAPS letters (`A`, `B`, `X`, `Y`, `SOMETHING`, `OTHER`).
+* Atomic types are ALL CAPS (`A`, `B`, `X`, `Y`, `SOMETHING`, `OTHER`).
   Their polarity is inferred.
-* Top/True/Unit is `tt`, while Bottom/False/Void is `ff`.
-* Positive conjunction is `(<pos> * <pos>)`, disjunction is `(<pos> + <pos>)`.
+* Top/True/Unit is `top`, while Bottom/False/Void is `btm`.
+* Positive connectives: conjunction is `(<pos> * <pos>)`, disjunction is `(<pos> + <pos>)`.
   and negation is `-<neg>`.
-* Negative conjunction is `(<neg> & <neg>)`, disjunction is `(<neg> | <neg>)`
+* Negative connectives: conjunction is `(<neg> & <neg>)`, disjunction is `(<neg> | <neg>)`
   (because ⅋ is too hard to type), and negation is `~<pos>`.
 * Up-shift is `^<neg>` and down-shift is `v<pos>`.
-* The function type `(A => B)` requires A and B to be positive, and is translated to `^(~A | vB)`.
-* Parentheses are required on all binary operators, including `=>`.
-* To quit, use Ctrl+C or type `QUIT`.
+* The function type `(<pos1> => <pos2>)` is syntax sugar for `^(~<pos1> | v<pos2>)`.
+* Parentheses are required on all binary operators, including `=>`, and otherwise disallowed.
+* To quit, use Ctrl+C or type `QUIT` (all-caps).
 
 For example, there are multiple ways to formulate the law of the excluded middle
 for a positive atomic type A.
@@ -36,6 +36,7 @@ This represents the *classical* law of the excluded middle, and its inhabitant i
 Some other inhabited types:
 * `((A + B) => ^(vA | vB))`
 * `(A => (A + B))`
+* `(((^(vA | ~A) * (A => (A + B))) * (((A + B) => ^(vA | vB)) * ^v(A + ^~A))) * ^(v^(vA | vB) | ~(A + B)))`
 
 Incorrectly mixing positive and negative terms will result in a parse error.
 Using an atomic type both positively and negatively will result in a search failure.
@@ -47,4 +48,5 @@ Neither of these is ideal.
   (might need unification?)
 * Evaluation, which is rather fiddly -- the rules involve a value restriction that's not built in to this implementation.
 * Improve error handling, which is not good currently.
-* ???
+* Improve parsing, which is inflexible.
+* Improve display of terms.

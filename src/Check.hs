@@ -40,7 +40,7 @@ nCheck ctx (MatchPlus (n1, c1) (n2, c2)) (NShift (Plus x y)) = do
 nCheck ctx (MatchMinus n c) (NShift (Minus t)) = cCheck c (nBind n t ctx)
 -- nCheck ctx (MatchExists (nt, nv) c) (NShift (Exists nt' y)) = if nt' == nt then cCheck c (pBind nv y ctx) else Left $ mkErr "ack!"
 nCheck ctx (Let n c) (NShift ty) = cCheck c (pBind n ty ctx)
-nCheck _ FF Bot = Right ()
+nCheck _ FF Btm = Right ()
 nCheck ctx tm ty = Left $ mkErr $ "Could not type " ++ show tm ++ ": " ++ show ty ++ "at context " ++ show ctx
 
 

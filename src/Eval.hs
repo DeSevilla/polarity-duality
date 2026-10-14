@@ -45,7 +45,7 @@ nSubst n ct (Let n' c) = Let n' $ cSubst n ct c
 -- ptSubst n t (PShift a) = PShift $ ntSubst n t a
 
 -- ntSubst :: Name -> Type -> NType -> NType
--- ntSubst _ _ Bot = Bot
+-- ntSubst _ _ Btm = Btm
 -- ntSubst n (Positive _) (NAtomic n') = if n == n' then trace ("Tried to subst positive for negative atomic") NAtomic n' else NAtomic n'
 -- ntSubst n (Negative nt) (NAtomic n') = if n == n' then nt else NAtomic n'
 -- ntSubst n t (Or a b) = Or (ntSubst n t a) (ntSubst n t b)

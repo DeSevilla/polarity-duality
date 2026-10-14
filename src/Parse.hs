@@ -15,13 +15,15 @@ parseType :: Parsec String () Type
 parseType = (parsePType >>= return . Positive) <|> (parseNType >>= return . Negative)
 
 parseNType :: Parsec String () NType
-parseNType = parseBot <|> parseNAtomic <|> try parseAnd <|> try parseOr <|> try parseNot <|> parseDownShift
+parseNType = parseBtm <|> parseNAtomic <|> try parseAnd <|> try parseOr <|>
+    try parseNot <|> parseDownShift
 
 parsePType :: Parsec String () PType
-parsePType = parseTop <|> parsePAtomic <|> try parseTimes <|> try parsePlus <|> try parseMinus <|> try parseUpShift <|> parseFunc
+parsePType = parseTop <|> parsePAtomic <|> try parseTimes <|> try parsePlus <|>
+    try parseMinus <|> try parseUpShift <|> parseFunc
 
-parseBot :: Parsec String () NType
-parseBot = string "ff" >> return Bot
+parseBtm :: Parsec String () NType
+parseBtm = string "btm" >> return Btm
 
 parseNAtomic :: Parsec String () NType
 parseNAtomic = parseName >>= return . NAtomic
@@ -42,7 +44,7 @@ parseFunc :: Parsec String () PType
 parseFunc = parseOp parsePType "=>" $ \a b -> PShift (Or (Not a) (NShift b))
 
 parseTop :: Parsec String () PType
-parseTop = string "tt" >> return Top
+parseTop = string "top" >> return Top
 
 parsePAtomic :: Parsec String () PType
 parsePAtomic = parseName >>= return . PAtomic
@@ -83,8 +85,6 @@ parseOp subterm op constr = do
 parseUnary :: (Parsec String () a) -> String -> (a -> b) -> Parsec String () b
 parseUnary subterm op constr = do
     eat op
-    -- open
     t <- subterm
-    -- close
     return $ constr t
 
