@@ -202,11 +202,11 @@ pFocusSearch ii ctx ty = checkVar ctx ty <|> case ty of
         a <- pFocusSearch ii' ctx tA
         b <- pFocusSearch ii' ctx tB
         return $ Pair a b
-    Plus tA tB -> (do
+    Plus tA tB ->
+        (do
             ii' <- apply PlusR1 ii
             res <- pFocusSearch ii' ctx tA
-            return $ InL res
-        )
+            return $ InL res)
         <|>
         (do
             ii' <- apply PlusR2 ii
@@ -222,16 +222,16 @@ nFocusSearch :: SearchState -> Context -> NType -> Either Errors Coterm
 nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
     Btm -> return FF
     NAtomic n -> Left $ mkErr $ "Cannot disprove negative atomic " ++ show n
-    And tA tB -> (do
-        ii' <- apply AndL1 ii
-        res <- (nFocusSearch ii' ctx tA)
-        return $ PiL res
-        )
-        <|> (do
-        ii' <- apply AndL2 ii
-        res <- nFocusSearch ii' ctx tB
-        return $ PiR res
-        )
+    And tA tB ->
+        (do
+            ii' <- apply AndL1 ii
+            res <- (nFocusSearch ii' ctx tA)
+            return $ PiL res)
+        <|> 
+        (do
+            ii' <- apply AndL2 ii
+            res <- nFocusSearch ii' ctx tB
+            return $ PiR res)
     Or tA tB -> do
         ii' <- apply OrL ii
         a <- nFocusSearch ii' ctx tA
