@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Ast (
-    Name(..), Context, pBind, nBind, pLookup, nLookup, showCtx, emptyCtx,
+    Name(..), Context, pBind, nBind, pLookup, nLookup, showCtx, emptyCtx, maxSize, mapCtxIndex,
     Term(..), Coterm(..), Termish(..), Command(..),
     PType(..), NType(..), Type(..),
     Errors(..), mkErr,
@@ -116,6 +116,16 @@ pLookup n (xs, _) = lookup n xs
 
 nLookup :: Name -> Context -> Maybe NType
 nLookup n (_, ys) = lookup n ys
+
+maxSize :: Context -> Int
+maxSize (xs, ys) = length xs + length ys
+
+mapCtxIndex :: ((Name, PType) -> Either Errors a) -> ((Name, NType) -> Either Errors a) -> Context -> Int -> Either Errors a
+mapCtxIndex pfn nfn ctx@(pos, neg) k = if maxSize ctx <= k
+    then Left $ mkErr $ "index " ++ show k ++ " too big for ctx size " ++ show (maxSize ctx)
+    else let plen = length pos in
+        if k < plen then pfn $ pos !! k
+        else nfn $ neg !! (k - plen)
 
 data Errors = Errs [String] deriving (Eq, Show)
 

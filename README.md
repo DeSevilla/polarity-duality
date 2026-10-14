@@ -38,9 +38,9 @@ Some other inhabited types:
 * `(A => (A + B))`
 * `(((^(vA | ~A) * (A => (A + B))) * (((A + B) => ^(vA | vB)) * ^v(A + ^~A))) * ^(v^(vA | vB) | ~(A + B)))`
 
-Incorrectly mixing positive and negative terms will result in a parse error.
-Using an atomic type both positively and negatively will result in a search failure.
-Neither of these is ideal.
+Note: Incorrectly mixing positive and negative connectives will result in a parse error.
+Using an atomic type both positively and negatively will usually result in a search failure.
+Neither of these *should* succeed, but these are not the ideal sorts of error.
 
 # To Do/Future Work
 
