@@ -30,7 +30,12 @@ backtrack :: Alternative f => Int -> (Int -> f a) -> f a
 backtrack 0 f = f 0
 backtrack k f = f k <|> backtrack (k - 1) f
 
+-- throughCtx :: Alternative f => Context -> (Context -> Int -> f a) -> f a
+throughCtx :: Alternative f => Context -> (Context -> Int -> f a) -> f a
+throughCtx ctx f = backtrack (maxSize ctx) (f ctx)
+
 -- contains: number of binders, list of rules + variables they've been applied to, name currently focused on.
+-- might be overcomplicated? can we do this with more just contexts, somehow?
 data SearchState = SSt Int [(Name, Rule)] (Maybe Name) deriving (Eq, Show)
 
 emptySSt :: SearchState
@@ -42,6 +47,7 @@ getName (SSt ii ns n) = (SSt (ii + 1) ns n, Local ii)
 note :: Name -> SearchState -> SearchState
 note n (SSt ii ns _) = SSt ii ns (Just n)
 
+-- apply a rule to a variable, eliminating that possibility from contention
 apply :: Rule -> SearchState -> Either Errors SearchState
 apply r (SSt ii ns (Just n))
     | (n, r) `elem` ns = Left $ mkErr $ "already filling variable " ++ show n ++ " with rule " ++ show r
@@ -68,7 +74,7 @@ checkCovar ctx ty = do
 
 -- TODO I think this does twice as much work as it needs to -- could just scan one section of ctx
 findCut :: Context -> Either Errors Command
-findCut ctx = backtrack (maxSize ctx) $ typeAtIndex ctx >=> makeCmdOnType ctx
+findCut ctx = throughCtx ctx $ \c -> typeAtIndex c >=> makeCmdOnType c
     where
         typeAtIndex :: Context -> Int -> Either Errors Type
         typeAtIndex = mapCtxIndex makePositive makeNegative
@@ -108,37 +114,37 @@ focuser ii ctx k = do
         negCanFocus (n, (NShift ty)) = Right (n, Positive ty)
         negCanFocus _ = Left $ mkErr $ "got non-shifted " ++ show k ++ " in context " ++ showCtx ctx ++ " (caused by backtracking)"
 
--- look for a mismatch, or if there is none, pick a variable to focus on
-findMismatch :: SearchState -> Context -> Int -> Either Errors Command
-findMismatch _ _ 0 = Left $ mkErr "findMismatch: all our backtracking failed"
-findMismatch ii ctx k = do
-    res <- mismatch ctx (k - 1)
-    case res of
-        Just (name, Positive pt) -> do
+-- find a place where an invertible rule can be applied
+-- TODO i think this is doing excess work if there are no mismatches
+findInvertible :: SearchState -> Context -> Int -> Either Errors Command
+findInvertible _ _ 0 = Left $ mkErr "findMismatch: all our backtracking failed"
+findInvertible ii ctx k = do
+    (name, ty) <- mismatchAt ctx (k - 1)
+    case ty of
+        Positive pt -> do
             let ii' = note name ii
             co <- pConsume ii' ctx pt
             return $ Connect (Positive pt) (Var name) co
-        Just (name, Negative nt) -> do
+        Negative nt -> do
             let ii' = note name ii
             tm <- nConsume ii' ctx nt
             return $ Connect (Negative nt) tm (Covar name)
-        Nothing -> backtrack (maxSize ctx) $ focuser ii ctx
+        -- Nothing -> Left $ mkErr $ "no mismatches at " ++ show k
     where
-        mismatch :: Context -> Int -> Either Errors (Maybe (Name, Type))
-        mismatch = mapCtxIndex phelper nhelper
+        -- positive type on left of sequent or negative type on right
+        mismatchAt :: Context -> Int -> Either Errors (Name, Type)
+        mismatchAt = mapCtxIndex phelper nhelper
 
-        phelper (_, PShift _) = Right Nothing
-        phelper (_, PAtomic _) = Right Nothing
-        phelper (n, pt) = Right $ Just (n, Positive pt)
+        phelper (n, PShift _) = Left $ mkErr $ "No mismatch at " ++ show n ++ " (+shifted)"
+        phelper (n, PAtomic _) = Left $ mkErr $ "No mismatch at " ++ show n ++ " (+atomic)"
+        phelper (n, pt) = Right $ (n, Positive pt)
 
-        nhelper (_, NShift _) = Right Nothing
-        nhelper (_, NAtomic _) = Right Nothing
-        nhelper (n, nt) = Right $ Just (n, Negative nt)
+        nhelper (n, NShift _) = Left $ mkErr $ "No mismatch at " ++ show n ++ " (+shifted)"
+        nhelper (n, NAtomic _) = Left $ mkErr $ "No mismatch at " ++ show n ++ " (+atomic)"
+        nhelper (n, nt) = Right $ (n, Negative nt)
 
--- first: check if the context has a var/covar pair we can cut, then 
-blurSearch :: SearchState -> Context -> Either Errors Command
-blurSearch ii ctx = findCut ctx <|> backtrack (maxSize ctx) (findMismatch ii ctx)
 
+-- negative-inversion phase of the search
 -- build mu terms to extract negative types
 nConsume :: SearchState -> Context -> NType -> Either Errors Term
 nConsume _ _ Btm = Left $ mkErr "Cannot prove Btm"
@@ -150,10 +156,10 @@ nConsume ii ctx (And a b) = do
     c2 <- blurSearch ii' (nBind name b ctx)
     return $ MuAnd (name, c1) (name, c2)
 nConsume ii ctx (Or a b) = do
-    iin <- apply OrR ii
-    let (ii', name1) = getName iin
-    let (ii'', name2) = getName ii'
-    res <- blurSearch ii'' (nBind name1 a (nBind name2 b ctx))
+    ii' <- apply OrR ii
+    let (ii'', name1) = getName ii'
+    let (ii''', name2) = getName ii''
+    res <- blurSearch ii''' (nBind name1 a (nBind name2 b ctx))
     return $ MuOr (name1, name2) res
 nConsume ii ctx (Not p) = do
     iin <- apply NotR ii
@@ -166,6 +172,7 @@ nConsume ii ctx (NShift p) = do
     res <- blurSearch ii' (nBind name (NShift p) ctx)
     return $ Mu name res
 
+-- positive-inversion phase of the search
 -- build mu-tilde coterms to consume positive types
 pConsume :: SearchState -> Context -> PType -> Either Errors Coterm
 pConsume _ _ Top = Left $ mkErr "Cannot disprove Top"
@@ -177,22 +184,25 @@ pConsume ii ctx (Times a b) = do
     res <- blurSearch ii''' (pBind name1 a (pBind name2 b ctx))
     return $ MatchTimes (name1, name2) res
 pConsume ii ctx (Plus a b) = do
-    ii'' <- apply PlusL ii
-    let (ii', name) = getName ii''
-    c1 <- blurSearch ii' (pBind name a ctx)
-    c2 <- blurSearch ii' (pBind name b ctx)
+    ii' <- apply PlusL ii
+    let (ii'', name) = getName ii'
+    c1 <- blurSearch ii'' (pBind name a ctx)
+    c2 <- blurSearch ii'' (pBind name b ctx)
     return $ MatchPlus (name, c1) (name, c2)
 pConsume ii ctx (Minus n) = do
-    ii'' <- apply MinusL ii
-    let (ii', name) = getName ii''
-    res <- blurSearch ii' (nBind name n ctx)
+    ii' <- apply MinusL ii
+    let (ii'', name) = getName ii'
+    res <- blurSearch ii'' (nBind name n ctx)
     return $ (MatchMinus name) res
 pConsume ii ctx (PShift n) = do
-    ii'' <- apply ShiftL ii
-    let (ii', name) = getName ii''
-    res <- blurSearch ii' (pBind name (PShift n) ctx)
+    ii' <- apply ShiftL ii
+    let (ii'', name) = getName ii'
+    res <- blurSearch ii'' (pBind name (PShift n) ctx)
     return $ Let name res
 
+-- positive-focused phase of the proof search
+-- build a term to fill a positive type
+-- maintains focus on subterms
 pFocusSearch :: SearchState -> Context -> PType -> Either Errors Term
 pFocusSearch ii ctx ty = checkVar ctx ty <|> case ty of
     Top -> return TT
@@ -218,6 +228,9 @@ pFocusSearch ii ctx ty = checkVar ctx ty <|> case ty of
         return $ Sub res
     PShift nt -> nConsume ii ctx nt
 
+-- negative-focused phase of the proof search
+-- build a coterm to fill a negative type
+-- maintains focus on subterms
 nFocusSearch :: SearchState -> Context -> NType -> Either Errors Coterm
 nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
     Btm -> return FF
@@ -227,7 +240,7 @@ nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
             ii' <- apply AndL1 ii
             res <- (nFocusSearch ii' ctx tA)
             return $ PiL res)
-        <|> 
+        <|>
         (do
             ii' <- apply AndL2 ii
             res <- nFocusSearch ii' ctx tB
@@ -238,9 +251,9 @@ nFocusSearch ii ctx ty = checkCovar ctx ty <|> case ty of
         b <- nFocusSearch ii' ctx tB
         return $ Copair a b
     Not p -> do
-        ii' <- apply NotL ii 
+        ii' <- apply NotL ii
         res <- pFocusSearch ii' ctx p
-        return $ Neg res 
+        return $ Neg res
     NShift pt -> pConsume ii ctx pt
 
 termSearch :: PType -> Either Errors Term
@@ -248,3 +261,11 @@ termSearch = pFocusSearch emptySSt emptyCtx
 
 cotermSearch :: NType -> Either Errors Coterm
 cotermSearch = nFocusSearch emptySSt emptyCtx
+
+-- build a command in a context -- this is generalized focusing
+-- 1. check if you can just cut it (TODO is this needed?)
+-- 2. if you can apply an invertible rule, apply one
+-- 3. if no invertible rules are applicable, pick something to focus on
+blurSearch :: SearchState -> Context -> Either Errors Command
+blurSearch ii ctx = findCut ctx <|> throughCtx ctx (findInvertible ii) <|> throughCtx ctx (focuser ii)
+

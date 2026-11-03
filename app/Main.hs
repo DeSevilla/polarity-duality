@@ -30,18 +30,21 @@ checkSearch search check ty = do
     putStrLn ""
 
 main :: IO ()
-main = do
-    putStrLn "Enter a polarized type:"
-    text <- getLine
-    case (parse parseLine "" text) of
-        Right (Positive ty) -> checkSearch termSearch pCheck ty
-        Right (Negative ty) -> checkSearch cotermSearch nCheck ty
-        Left errs -> do
-            putStrLn "Failed to parse:"
-            putStr "\t"
-            print errs
+main = let repl = do
+            putStrLn "Enter a polarized type:"
+            text <- getLine
+            case (parse parseLine "" text) of
+                Right (Positive ty) -> checkSearch termSearch pCheck ty
+                Right (Negative ty) -> checkSearch cotermSearch nCheck ty
+                Left errs -> do
+                    putStrLn "Failed to parse:"
+                    putStr "\t"
+                    print errs
 
-    if text == "QUIT" then return () else main
+            if text == "QUIT" then return () else repl
+    in do
+        putStrLn "This program searches for inhabitants of polarized types in the empty context."
+        repl
     -- let tA = PAtomic (Global "A")
     -- let tB = PAtomic (Global "B")
     -- let lemA = Plus tA (PShift (Not tA))
